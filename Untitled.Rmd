@@ -1,0 +1,140 @@
+---
+title: "final_co2_new"
+output: html_document
+date: "2025-05-31"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(ggplot2)
+library(viridis)
+```
+
+# Data Cleaning
+
+```{r}
+co2_raw <- read_csv("owid-co2-data.csv")
+co2_countries <- co2_raw %>%
+  filter(str_length(iso_code) == 3)
+
+co2_trim <- co2_countries %>%
+  filter(year >= 1960, year <= 2021)
+
+co2_clean <- co2_trim %>%
+  filter(!is.na(co2), !is.na(co2_per_capita))
+```
+
+# Top 5 Countries with CO2 Emissions of All Time
+
+```{r pressure, echo=FALSE}
+total_co2 <- co2_clean %>%
+  group_by(iso_code, country) %>%          
+  summarise(
+    total_co2 = sum(co2, na.rm = TRUE),
+    total_gdp = sum(gdp, na.rm = TRUE),
+    .groups = "drop"                       
+  ) %>%
+  select(country, iso_code, total_co2, total_gdp) %>%
+  arrange(desc(total_co2)) %>%
+  head(5)
+par(mar = c(5, 8, 4, 2) + 0.1)
+barplot(height=total_co2$total_co2, names=total_co2$country, 
+        col="#69b3a2",
+        horiz=T, las=1,
+        main="Top CO2 Emitters",
+        xlab = "CO2 Emissions in Million of Tonnes"
+        )
+```
+```{r}
+top_co2_countries <- co2_clean %>%
+  filter(iso_code %in% c("USA", "CHN", "RUS", "JPN", "DEU"))
+
+co2_plot <- ggplot(top_co2_countries, aes(x = year)) +
+  geom_bar(aes(y = gdp / max(gdp, na.rm = TRUE) * max(co2, na.rm = TRUE), 
+               fill = country), 
+           stat = "identity", 
+           position = position_dodge(width = 0.7),  
+           alpha = 0.6,
+           width = 0.7) +  
+  
+  geom_line(aes(y = co2, color = country), linewidth = 1) +
+  geom_point(aes(y = co2, color = country), size = 2) +
+  
+  scale_y_continuous(
+    name = "CO2 Emissions (million tonnes)",
+    labels = scales::comma_format(scale = 1e-6),  
+    sec.axis = sec_axis(~ . / max(top_co2_countries$co2, na.rm = TRUE) * 
+                        max(top_co2_countries$gdp, na.rm = TRUE), 
+                        name = "GDP (constant $)",
+                        labels = scales::dollar_format())
+  ) +
+  
+  labs(
+    title = "CO2 Emissions and GDP Over Time (Top 5 Countries)",
+    x = "Year",
+    color = "Country (CO2)",
+    fill = "Country (GDP)"
+  ) +
+  
+  theme_minimal(base_size = 20) +  
+  theme(
+    legend.position = "bottom",
+    legend.box = "horizontal",
+    legend.title = element_text(size = 20),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 24),
+    axis.title.y = element_text(margin = margin(r = 15), size = 24),
+    axis.title.y.right = element_text(margin = margin(l = 15)),
+    plot.margin = margin(1, 1, 1, 1, "cm"), 
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 24)
+  ) +
+  
+  scale_fill_brewer(palette = "Set1") +
+  scale_color_brewer(palette = "Set1")
+
+ggsave("co2_gdp_plot.png", co2_plot, width = 45, height = 20, dpi = 300)
+```
+
+
+# Their share in 2011 - 2021
+```{r}
+library(ggplot2)
+library(dplyr)
+
+share_2021 <- co2_clean %>%
+  filter(iso_code %in% c("USA", "CHN", "RUS", "JPN", "DEU")) %>%
+  filter(year %in% c(2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011)) %>%
+  mutate(year = as.factor(year))  # Convert year to factor for better plotting
+
+share_2021 <- share_2021 %>%
+  group_by(year) %>%
+  arrange(year, desc(iso_code)) %>%  
+  mutate(
+    label_y = cumsum(share_global_co2) - 0.5 * share_global_co2  
+  ) %>%
+  ungroup()
+
+ggplot(share_2021, aes(x = year, y = share_global_co2, fill = iso_code)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(
+    aes(y = label_y, label = sprintf("%.1f%%", share_global_co2)),  
+    color = "white",  
+    size = 2,       
+    fontface = "bold"  
+  ) +
+  labs(
+    title = "Global CO2 Contribution by Country (2011-2021)",
+    x = "Year",
+    y = "Percentage of Global CO2 Emissions (%)",
+    fill = "Country"
+  ) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Comparing them to individual CO output
+```{r}
+
+```

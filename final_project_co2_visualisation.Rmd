@@ -86,46 +86,80 @@ total_co2 <- co2_countries %>%
 
 total_co2
 ```
+```{r}
+total_co2
+
+barplot(height=total_co2$total_co2, names=total_co2$country, 
+        col="#69b3a2",
+        horiz=T, las=1
+        )
+
+```
 ## Focus countries based on total CO2 emissions
 ```{r}
-largest_co25 <- co2_countries %>%
-  filter(iso_code %in% c("USA", "CHN", "RUS"))
+# First, let's create a better filtered dataset name
+top_co2_countries <- co2_countries %>%
+  filter(iso_code %in% c("USA", "CHN", "RUS", "DEU", "GBR"))
 
-  #filter(iso_code %in% c("USA", "CHN", "RUS", "JPN", "DEU"))
-
-
-ggplot(largest_co25, aes(x = year)) +
-  # Bar plot for GDP (with transparency using alpha)
-  geom_bar(aes(y = gdp / max(gdp) * max(co2), fill = country), 
+# Create the plot with adjusted dimensions and scaling
+co2_plot <- ggplot(top_co2_countries, aes(x = year)) +
+  # Bar plot for GDP - adjusted scaling
+  geom_bar(aes(y = gdp / max(gdp, na.rm = TRUE) * max(co2, na.rm = TRUE), 
+               fill = country), 
            stat = "identity", 
-           position = "dodge", 
-           alpha = 0.6) +  # alpha controls transparency
+           position = position_dodge(width = 0.7),  # Adjusted dodge width
+           alpha = 0.6,
+           width = 0.7) +  # Adjusted bar width
   
-  # Line plot for CO2 emissions
+  # Line plot for CO2 emissions with points for better visibility
   geom_line(aes(y = co2, color = country), linewidth = 1) +
+  geom_point(aes(y = co2, color = country), size = 2) +
   
-  # Secondary axis for GDP (scaled to match CO2 range)
+  # Secondary axis with proper scaling
   scale_y_continuous(
-    name = "CO2 Emissions (tonnes)",
-    sec.axis = sec_axis(~ . / max(largest_co25$co2) * max(largest_co25$gdp), 
-                        name = "GDP (constant $)")
+    name = "CO2 Emissions (million tonnes)",
+    labels = scales::comma_format(scale = 1e-6),  # Show in millions
+    sec.axis = sec_axis(~ . / max(top_co2_countries$co2, na.rm = TRUE) * 
+                        max(top_co2_countries$gdp, na.rm = TRUE), 
+                        name = "GDP (constant $)",
+                        labels = scales::dollar_format())
   ) +
   
   # Customizing colors and labels
   labs(
-    title = "CO2 Emissions and GDP Over Time (Top 3 Countries)",
+    title = "CO2 Emissions and GDP Over Time (Top 5 Countries)",
     x = "Year",
     color = "Country (CO2)",
     fill = "Country (GDP)"
   ) +
   
   # Theme improvements
-  theme_minimal() +
+  theme_minimal(base_size = 20) +  # Increased base font size
   theme(
     legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+    legend.box = "horizontal",
+    legend.title = element_text(size = 20),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 24),
+    axis.title.y = element_text(margin = margin(r = 15), size = 24),
+    axis.title.y.right = element_text(margin = margin(l = 15)),
+    plot.margin = margin(1, 1, 1, 1, "cm"),  # Added margins
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 24)
+  ) +
+  
+  # Color scales
+  scale_fill_brewer(palette = "Set1") +
+  scale_color_brewer(palette = "Set1")
+
+# Display the plot with appropriate dimensions
+options(repr.plot.width = 45, repr.plot.height = 10)  # For R Notebook
+co2_plot
+
+# If saving to a file:
+ggsave("co2_gdp_plot.png", co2_plot, width = 45, height = 20, dpi = 300)
+
 ```
+
+
 ```{r}
 largest_co25 <- co2_countries %>%
   filter(iso_code %in% c("JPN", "DEU"))
@@ -152,7 +186,7 @@ ggplot(largest_co25, aes(x = year)) +
   
   # Customizing colors and labels
   labs(
-    title = "CO2 Emissions and GDP Over Time (Top 5 Countries)",
+    title = "CO2 Emissions and GDP Over Time Japan and Germany",
     x = "Year",
     color = "Country (CO₂)",
     fill = "Country (GDP)"
@@ -198,6 +232,10 @@ summary_latest <- co2_clean %>%
 
 # Show the result
 summary_latest
+```
+
+```{r}
+largest_co25
 ```
 
 # Results
